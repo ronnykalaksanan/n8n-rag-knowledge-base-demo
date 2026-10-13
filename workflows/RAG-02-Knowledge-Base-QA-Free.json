@@ -1,0 +1,212 @@
+{
+  "name": "RAG-02 - Knowledge Base Q&A [Demo, Free]",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## RAG-02 - Knowledge Base Q&A [Demo]\n\n**Owned By:** [your name]\n**Last Updated:** 2026-10-10\n\n**Description:**\nChat agent that answers ONLY from the documents stored by RAG-01. It searches\nthe Supabase vector store (top 4 chunks), answers in plain language, cites the\nsource file, and says so when the documents do not contain the answer.\n\n**Flow Steps:**\n1. ReceiveChatMessage - n8n Chat Trigger\n2. AnswerFromKnowledgeBase - AI Agent (system prompt enforces grounding + citation)\n   - gpt-oss-120b (Groq): chat model\n   - ChatSessionMemory: short conversation memory\n   - SearchKnowledgeBase: Supabase vector store as a tool (top 4)\n   - GeminiEmbeddingsQuery: embeds the question (same model as ingestion!)\n\n**Before first run:**\n- Run RAG-01 first and upload the 3 demo PDFs\n- Replace credentials: SUPABASE_CRED_ID, GROQ_CRED_ID, GEMINI_CRED_ID\n- Embedding model MUST match RAG-01 (gemini-embedding-001, 3072 dims)\n\n**Testing:** use rag-demo-test-sheet.xlsx (20 questions) and record Pass/Fail.\n\n**Dependencies:** Supabase, Groq and Google Gemini (PaLM) API credentials\n**Error handling:** set Error Workflow in Settings to your global error handler.\n",
+        "height": 560,
+        "width": 620
+      },
+      "id": "827949f4-e3a5-475f-93bc-e375d7d43658",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f0731bc7-a851-481e-b421-3dc3870875ce",
+      "name": "ReceiveChatMessage",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "REGENERATED_ON_IMPORT"
+    },
+    {
+      "parameters": {
+        "promptType": "auto",
+        "options": {
+          "systemMessage": "You are the customer support assistant for Northwind Roasters, an online coffee store.\n\nRULES\n1. For every customer question about the company, products, shipping, returns, subscriptions or policies, ALWAYS call the SearchKnowledgeBase tool first.\n2. Answer ONLY with information found in the retrieved text. Never use outside knowledge, never guess, never invent numbers, prices, dates or policies.\n3. If the retrieved text does not contain the answer, say clearly: \"I couldn't find that in our documents.\" Then, if the documents list a relevant contact (for example an email address), offer it. Do not fabricate contact details.\n4. If the question mixes several policies (for example subscription shipping vs. standard free-shipping threshold), check all retrieved passages and state the rule that applies.\n5. Questions unrelated to Northwind Roasters (general knowledge, other companies, etc.): politely say you can only help with Northwind Roasters questions.\n6. Keep answers short and direct (2-5 sentences). Quote exact figures (prices, days, hours) as written in the documents.\n7. End every answer that used the documents with a line: \"Source: <document name(s)>\" using the 'source' metadata of the passages you used.\n8. Search the knowledge base ONCE per question. If the retrieved passages do not answer the question, do NOT search again: reply \"I couldn't find that in our documents.\" and, if a relevant email address appears in the documents, offer it. Search a second time only when the question has two clearly separate parts.",
+          "maxIterations": 5
+        }
+      },
+      "id": "022fd4b2-86f3-497b-bb65-f8874c1a95b9",
+      "name": "AnswerFromKnowledgeBase",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        260,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "036a2749-aa42-43ef-bdb7-37b470762c13",
+      "name": "gpt-oss-120b (Groq)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        180,
+        240
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "GROQ_CRED_ID",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 6
+      },
+      "id": "aec52e02-d07c-4e31-ab8a-bd302ac7bd89",
+      "name": "ChatSessionMemory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        340,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "SearchKnowledgeBase",
+        "toolDescription": "Search the Northwind Roasters documents (shipping, returns, refunds, subscriptions, products, loyalty program). Input: the customer's question in natural language.",
+        "tableName": {
+          "__rl": true,
+          "value": "rag_demo_documents",
+          "mode": "list",
+          "cachedResultName": "rag_demo_documents"
+        },
+        "topK": 4,
+        "includeDocumentMetadata": true,
+        "options": {
+          "queryName": "match_rag_demo_documents"
+        }
+      },
+      "id": "c784eba3-4867-4253-8030-b6168086f46b",
+      "name": "SearchKnowledgeBase",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        240
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CRED_ID",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "id": "4b866305-ea4d-44ba-9533-ac0f5a6ebb68",
+      "name": "GeminiEmbeddingsQuery",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        540,
+        440
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GEMINI_CRED_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "ReceiveChatMessage": {
+      "main": [
+        [
+          {
+            "node": "AnswerFromKnowledgeBase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatSessionMemory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AnswerFromKnowledgeBase",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SearchKnowledgeBase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AnswerFromKnowledgeBase",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GeminiEmbeddingsQuery": {
+      "ai_embedding": [
+        [
+          {
+            "node": "SearchKnowledgeBase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-oss-120b (Groq)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AnswerFromKnowledgeBase",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "UTC"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
